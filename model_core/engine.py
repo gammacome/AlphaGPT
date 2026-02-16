@@ -56,7 +56,13 @@ class AlphaEngine:
             'stable_rank': []
         }
 
-    def train(self):
+    def train(self): 
+        
+        print(f"torch.cuda.is_available(): {torch.cuda.is_available()}")
+        print(f"torch.cuda.get_device_name(0): {torch.cuda.get_device_name(0)}")
+        print(f"torch.__version__: {torch.__version__}")
+        print(f"torch.version.cuda: {torch.version.cuda}")
+
         print("🚀 Starting Meme Alpha Mining with LoRD Regularization..." if self.use_lord else "🚀 Starting Meme Alpha Mining...")
         if self.use_lord:
             print(f"   LoRD Regularization enabled")
@@ -96,6 +102,11 @@ class AlphaEngine:
                 if res.std() < 1e-4:
                     rewards[i] = -2.0
                     continue
+                
+                # debug start: 加这里 ↓ 只打印第一个样本
+                if i == 0:
+                    print(f"res range: {res.min():.3f} ~ {res.max():.3f} | std: {res.std():.3f}")
+                # debug end;
                 
                 score, ret_val = self.bt.evaluate(res, self.loader.raw_data_cache, self.loader.target_ret)
                 rewards[i] = score

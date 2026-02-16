@@ -32,49 +32,87 @@ class DBManager:
                 CREATE TABLE IF NOT EXISTS ohlcv (
                     time TIMESTAMP NOT NULL,
                     address TEXT NOT NULL,
+                    interval TEXT NOT NULL,
                     open DOUBLE PRECISION,
                     high DOUBLE PRECISION,
                     low DOUBLE PRECISION,
                     close DOUBLE PRECISION,
                     volume DOUBLE PRECISION,
-                    liquidity DOUBLE PRECISION, 
+                    liquidity DOUBLE PRECISION,
                     fdv DOUBLE PRECISION,
                     source TEXT,
-                    PRIMARY KEY (time, address)
+                    PRIMARY KEY (time, address, interval)
                 );
             """)
-            
+
             try:
-                await conn.execute("SELECT create_hypertable('ohlcv', 'time', if_not_exists => TRUE);")
+                await conn.execute(
+                    "SELECT create_hypertable('ohlcv', 'time', if_not_exists => TRUE);"
+                )
                 logger.info("Converted ohlcv to Hypertable.")
             except Exception:
                 logger.warning("TimescaleDB extension not found, using standard Postgres.")
 
-            await conn.execute("CREATE INDEX IF NOT EXISTS idx_ohlcv_address ON ohlcv (address);")
+            await conn.execute("""
+                CREATE INDEX IF NOT EXISTS idx_ohlcv_address
+                ON ohlcv (address);
+            """)
+
+            await conn.execute("""
+                CREATE INDEX IF NOT EXISTS idx_ohlcv_interval
+                ON ohlcv (interval);
+            """)
 
     async def upsert_tokens(self, tokens):
-        if not tokens: return
+        if not tokens:
+            return
+
         async with self.pool.acquire() as conn:
-            # tokens: list of (address, symbol, name, decimals, chain)
             await conn.executemany("""
                 INSERT INTO tokens (address, symbol, name, decimals, chain, last_updated)
                 VALUES ($1, $2, $3, $4, $5, NOW())
                 ON CONFLICT (address) DO UPDATE 
-                SET symbol = EXCLUDED.symbol, last_updated = NOW();
+                SET symbol = EXCLUDED.symbol,
+                    last_updated = NOW();
             """, tokens)
 
-    async def batch_insert_ohlcv(self, records):
-        if not records: return
+    async def batch_insert_ohlcv(self, records, interval):
+        """
+        records: list of tuples:
+        (time, address, open, high, low, close, volume, liquidity, fdv, source)
+        interval: '1m' / '30m' / '1d' 等
+        """
+
+        if not records:
+            return
+
+        # 给每条记录附加 interval
+        records_with_interval = [
+            (*r[:2], interval, *r[2:])
+            for r in records
+        ]
+
         async with self.pool.acquire() as conn:
             try:
                 await conn.copy_records_to_table(
                     'ohlcv',
-                    records=records,
-                    columns=['time', 'address', 'open', 'high', 'low', 'close', 
-                             'volume', 'liquidity', 'fdv', 'source'],
+                    records=records_with_interval,
+                    columns=[
+                        'time',
+                        'address',
+                        'interval',
+                        'open',
+                        'high',
+                        'low',
+                        'close',
+                        'volume',
+                        'liquidity',
+                        'fdv',
+                        'source'
+                    ],
                     timeout=60
                 )
             except asyncpg.UniqueViolationError:
-                pass # 忽略重复
+                pass
             except Exception as e:
                 logger.error(f"Batch insert error: {e}")

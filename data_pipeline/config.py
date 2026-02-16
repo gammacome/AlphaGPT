@@ -10,13 +10,18 @@ class Config:
     DB_PORT = os.getenv("DB_PORT", "5432")
     DB_NAME = os.getenv("DB_NAME", "crypto_quant")
     DB_DSN = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+    TRENDING_LIMIT = int(os.getenv("TRENDING_LIMIT", 100))
     CHAIN = "solana"
-    TIMEFRAME = "1m" # 也支持 15min
+    TIMEFRAME =  os.getenv("TIMEFRAME", "30m") # 也支持 15min
     MIN_LIQUIDITY_USD = 500000.0  
     MIN_FDV = 10000000.0            
     MAX_FDV = float('inf') 
     BIRDEYE_API_KEY = os.getenv("BIRDEYE_API_KEY", "")
     BIRDEYE_IS_PAID = True
     USE_DEXSCREENER = False
-    CONCURRENCY = 20
-    HISTORY_DAYS = 7
+    #CONCURRENCY = 20
+    #HISTORY_DAYS = 7
+    HISTORY_DAYS = 3
+    CONCURRENCY = 2
+    KLINE_INTERVAL = os.getenv("TIMEFRAME", "30m")
+ 

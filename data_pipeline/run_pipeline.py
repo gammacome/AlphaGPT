@@ -4,6 +4,8 @@ from .data_manager import DataManager
 from .config import Config
 
 async def main():
+     
+
     if not Config.BIRDEYE_API_KEY:
         logger.error("BIRDEYE_API_KEY is missing in .env")
         return
@@ -19,4 +21,4 @@ async def main():
         await manager.close()
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    asyncio.run(main()) 

@@ -14,10 +14,14 @@ class BirdeyeProvider(DataProvider):
         }
         self.semaphore = asyncio.Semaphore(Config.CONCURRENCY)
         
-    async def get_trending_tokens(self, limit=100):
+    async def get_trending_tokens(self, limit=None):
+        limit=2
+        if limit is None:
+            limit = Config.TRENDING_LIMIT
         url = f"{self.base_url}/defi/token_trending"
         params = {
             "sort_by": "rank",
+            "chain": "solana",
             "sort_type": "asc",
             "offset": "0",
             "limit": str(limit)
@@ -42,7 +46,9 @@ class BirdeyeProvider(DataProvider):
                             })
                         return results
                     else:
-                        logger.error(f"Birdeye Trending Error: {resp.status}")
+                        text = await resp.text()
+                        logger.error(f"Birdeye Trending Error {resp.status}: {text}")
+                        #logger.error(f"Birdeye Trending Error: {resp.status}")
                         return []
             except Exception as e:
                 logger.error(f"Birdeye Trending Exception: {e}")

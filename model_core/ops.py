@@ -1,4 +1,5 @@
 import torch
+from .config import ModelConfig
 
 @torch.jit.script
 def _ts_delay(x: torch.Tensor, d: int) -> torch.Tensor:
@@ -16,7 +17,7 @@ def _op_jump(x: torch.Tensor) -> torch.Tensor:
     mean = x.mean(dim=1, keepdim=True)
     std = x.std(dim=1, keepdim=True) + 1e-6
     z = (x - mean) / std
-    return torch.relu(z - 3.0)
+    return torch.relu(z - 3)
 
 @torch.jit.script
 def _op_decay(x: torch.Tensor) -> torch.Tensor:

@@ -9,7 +9,7 @@ class CryptoDataLoader:
         self.engine = sqlalchemy.create_engine(ModelConfig.DB_URL)
         self.feat_tensor = None
         self.raw_data_cache = None
-        self.target_ret = None
+        self.target_ret = None  
         
     def load_data(self, limit_tokens=500):
         print("Loading data from SQL...")
@@ -21,16 +21,25 @@ class CryptoDataLoader:
         if not addrs: raise ValueError("No tokens found.")
         addr_str = "'" + "','".join(addrs) + "'"
         data_query = f"""
-        SELECT time, address, open, high, low, close, volume, liquidity, fdv
+        SELECT time, address, open, high, low, close, volume, liquidity, fdv, interval
         FROM ohlcv
         WHERE address IN ({addr_str})
         ORDER BY time ASC
         """
         df = pd.read_sql(data_query, self.engine)
+        df = df[df["interval"] == "1m"]
+        
         def to_tensor(col):
             pivot = df.pivot(index='time', columns='address', values=col)
             pivot = pivot.fillna(method='ffill').fillna(0.0)
             return torch.tensor(pivot.values.T, dtype=torch.float32, device=ModelConfig.DEVICE)
+        
+        def to_tensor_categorical(col):
+            pivot = df.pivot(index='time', columns='address', values=col)
+            pivot = pivot.fillna(method='ffill').fillna('UNK')
+            # 转成类别码
+            codes = pivot.apply(lambda x: pd.Categorical(x).codes, axis=0)
+            return torch.tensor(codes.values.T, dtype=torch.int64, device=ModelConfig.DEVICE)
         self.raw_data_cache = {
             'open': to_tensor('open'),
             'high': to_tensor('high'),
@@ -38,7 +47,8 @@ class CryptoDataLoader:
             'close': to_tensor('close'),
             'volume': to_tensor('volume'),
             'liquidity': to_tensor('liquidity'),
-            'fdv': to_tensor('fdv')
+            'fdv': to_tensor('fdv'),
+            'interval': to_tensor_categorical('interval')
         }
         self.feat_tensor = FeatureEngineer.compute_features(self.raw_data_cache)
         op = self.raw_data_cache['open']

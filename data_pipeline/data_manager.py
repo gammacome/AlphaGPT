@@ -63,7 +63,7 @@ class DataManager:
                 records = [item for sublist in results if sublist for item in sublist]
                 
                 # 批量写入
-                await self.db.batch_insert_ohlcv(records)
+                await self.db.batch_insert_ohlcv(records,Config.KLINE_INTERVAL)
                 total_candles += len(records)
                 logger.info(f"Processed batch {i}/{len(tasks)}. Inserted {len(records)} candles.")
                 
